@@ -131,6 +131,7 @@ def run_trial(
     block_size: int,
     ber: float,
     noise_model: str,
+    parity_bytes: int,
 ) -> TrialResult:
     encoded: bytes = bytes(fec.encode(data, block_size))
 
@@ -141,7 +142,7 @@ def run_trial(
     decoded: bytes = bytes(decoded_raw)
 
     # Determine which encoded blocks were actually modified by the noise channel.
-    enc_block_size = block_size + 1
+    enc_block_size = block_size + parity_bytes
     corrupted_block_indices: set[int] = set()
     for idx, (orig_chunk, noisy_chunk) in enumerate(
         zip(_iter_chunks(encoded, enc_block_size), _iter_chunks(noisy, enc_block_size))
@@ -183,10 +184,10 @@ class Metrics:
     overhead_ratio: float = 0.0  # encoded_size / original_size
 
 
-def compute_metrics(results: list[TrialResult], block_size: int) -> Metrics:
+def compute_metrics(results: list[TrialResult], block_size: int, parity_bytes: int) -> Metrics:
     m = Metrics()
     m.trials = len(results)
-    m.overhead_ratio = (block_size + 1) / block_size
+    m.overhead_ratio = (block_size + parity_bytes) / block_size
 
     for r in results:
         m.total_blocks += r.total_blocks
@@ -223,7 +224,7 @@ def print_report(m: Metrics, impl_name: str, ber: float, noise_model: str, block
     print(f"  Noise model       : {noise_model}")
     print(f"  Target BER        : {ber:.4f}  ({ber*100:.2f}%)")
     print(f"  Actual BER        : {actual_ber:.4f}  ({actual_ber*100:.2f}%)")
-    print(f"  Block size        : {block_size} data bytes + 1 parity byte")
+    print(f"  Block size        : {block_size} data bytes + {int((m.overhead_ratio - 1) * block_size)} parity bytes")
     print(f"  Code overhead     : {(m.overhead_ratio - 1)*100:.1f}%  ({m.overhead_ratio:.4f}×)")
     print(bar)
     print(f"  Trials            : {m.trials}")
@@ -308,16 +309,19 @@ def main() -> None:
 
     fec = import_impl(args.impl)
 
+    # Ask the module how many parity bytes it appends per block.
+    parity_bytes: int = fec.overhead(args.block_size)
+
     print(f"[run]   impl={args.impl}  ber={args.ber}  trials={args.trials}"
           f"  data-size={args.data_size}B  block-size={args.block_size}"
-          f"  noise={args.noise_model}")
+          f"  parity={parity_bytes}B  noise={args.noise_model}")
 
     results: list[TrialResult] = []
     for _ in range(args.trials):
         data = bytes(random.getrandbits(8) for _ in range(args.data_size))
-        results.append(run_trial(fec, data, args.block_size, args.ber, args.noise_model))
+        results.append(run_trial(fec, data, args.block_size, args.ber, args.noise_model, parity_bytes))
 
-    metrics = compute_metrics(results, args.block_size)
+    metrics = compute_metrics(results, args.block_size, parity_bytes)
     print_report(metrics, args.impl, args.ber, args.noise_model, args.block_size)
 
 

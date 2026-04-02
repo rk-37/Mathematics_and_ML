@@ -66,9 +66,17 @@ fn decode(data: &[u8], block_size: usize) -> PyResult<(Vec<u8>, Vec<usize>)> {
     Ok((decoded, error_blocks))
 }
 
+/// Returns the number of parity bytes appended per data block.
+/// For XOR parity this is always 1, regardless of block_size.
+#[pyfunction]
+fn overhead(_block_size: usize) -> usize {
+    1
+}
+
 #[pymodule]
 fn xor_parity(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(encode, m)?)?;
     m.add_function(wrap_pyfunction!(decode, m)?)?;
+    m.add_function(wrap_pyfunction!(overhead, m)?)?;
     Ok(())
 }
