@@ -19,10 +19,18 @@ fn encode(data: &[u8], block_size: usize) -> PyResult<Vec<u8>> {
     let mut encoded = Vec::with_capacity(data.len() + num_blocks);
 
     for chunk in data.chunks(block_size) {
+        let mut parity = 0;
+        for bit in 0..block_size {
+            parity = parity ^ chunk[bit];
+        }
         encoded.extend_from_slice(chunk);
-        let parity: u8 = chunk.iter().fold(0u8, |acc, &b| acc ^ b);
         encoded.push(parity);
     }
+
+    // //////////////////////////////////////////////////////
+    // Write your encoding implementation here
+    // unimplemented!("Implement XOR parity encoding");
+    // //////////////////////////////////////////////////////
 
     Ok(encoded)
 }
@@ -46,22 +54,11 @@ fn decode(data: &[u8], block_size: usize) -> PyResult<(Vec<u8>, Vec<usize>)> {
     let mut decoded = Vec::with_capacity(data.len());
     let mut error_blocks: Vec<usize> = Vec::new();
 
-    for (block_idx, chunk) in data.chunks(encoded_block_size).enumerate() {
-        if chunk.len() < 2 {
-            // Malformed trailing bytes — pass through without parity check
-            decoded.extend_from_slice(chunk);
-            continue;
-        }
-
-        let (payload, parity_slice) = chunk.split_at(chunk.len() - 1);
-        let computed_parity: u8 = payload.iter().fold(0u8, |acc, &b| acc ^ b);
-
-        if computed_parity != parity_slice[0] {
-            error_blocks.push(block_idx);
-        }
-
-        decoded.extend_from_slice(payload);
-    }
+    decoded = data.to_vec();
+    // //////////////////////////////////////////////////////
+    // Write your decoding implementation here
+    // unimplemented!("Implement XOR parity decoding");
+    // //////////////////////////////////////////////////////
 
     Ok((decoded, error_blocks))
 }
